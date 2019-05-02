@@ -7,7 +7,6 @@ This script receives MQTT data and saves those to InfluxDB.
 """
 
 import json
-from typing import NamedTuple
 
 import paho.mqtt.client as mqtt
 from influxdb import InfluxDBClient
@@ -27,37 +26,6 @@ MQTT_CLIENT_ID = 'MQTTInfluxDBBridge'
 influxdb_client = InfluxDBClient(INFLUXDB_ADDRESS, 8086, INFLUXDB_USER, INFLUXDB_PASSWORD, None)
 
 
-class Channel(NamedTuple):
-    number: int
-    name: str
-    typ: int
-    temp: float
-    min: float
-    max: float
-    alarm: bool
-    color: str
-
-class System(NamedTuple):
-    time: int
-    soc: int
-    charge: bool
-    rssi: int
-    unit: str
-
-class Pitmaster(NamedTuple):
-    id: int
-    channel: int
-    pid: int
-    value: int
-    set: int
-    typ: str
-
-
-class ThermoData(NamedTuple):
-    system: System
-    channel: Channel
-    pitmaster: Pitmaster
-
 def on_connect(client, userdata, flags, rc):
     """ The callback for when the client receives a CONNACK response from the server."""
     print('Connected with result code ' + str(rc))
@@ -66,33 +34,30 @@ def on_connect(client, userdata, flags, rc):
 
 def on_message(client, userdata, msg):
     """The callback for when a PUBLISH message is received from the server."""
-    channel = _parse_mqtt_message(msg.topic, msg.payload.decode('utf-8'))
+    print('Message received')
 
-    for c in channel:
-        if c is not None:
-            _send_thermo_data_to_influxdb(c)
+    data = json.loads(msg.payload.decode('utf-8'))
 
-
-def _parse_mqtt_message(topic, payload):
-    dataObj = json.load(payload)
-    return dataObj["channel"]
+    for c in data['channel']:
+        _send_thermo_data_to_influxdb(c)
 
 
 def _send_thermo_data_to_influxdb(channel):
     json_body = [
         {
-            'number': channel.number,
-            'name': channel.name,
-            'typ': channel.typ,
-            'temp': channel.temp,
-            'min': channel.min,
-            'max': channel.max,
-            'alarm': channel.alarm,
-            'color': channel.color
+            'measurement': "temperature",
+            'tags': {
+                'channel': channel["name"]
+            },
+            'fields': {
+                'value': channel["temp"]
+            }
         }
     ]
+    print('json body built')
     influxdb_client.write_points(json_body)
-
+    print('measurements:')
+    print(influxdb_client.get_list_measurements())
 
 def _init_influxdb_database():
     databases = influxdb_client.get_list_database()
