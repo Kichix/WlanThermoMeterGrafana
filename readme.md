@@ -16,3 +16,11 @@ the tag "name" equalling the name of the channel you want to display. The field 
 
 You can also display battery charge, which is stored in the influx db under the measurement "system" and 
 field "charge". A tag is not necessary.
+
+###Credit
+
+Took heavy inspiration from this repo: 
+
+https://github.com/Nilhcem/home-monitoring-grafana
+
+Thanks!
