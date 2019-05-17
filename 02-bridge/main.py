@@ -19,8 +19,8 @@ INFLUXDB_DATABASE = 'home_db'
 MQTT_ADDRESS = 'mosquitto'
 MQTT_USER = 'mqttuser'
 MQTT_PASSWORD = 'mqttpassword'
-MQTT_TOPIC = 'home/+/+'  # [bme280|mijia]/[temperature|humidity|battery|status]
-MQTT_REGEX = 'home/([^/]+)/([^/]+)'
+MQTT_TOPIC = 'WLanThermo/Nano/+/+'  # [bme280|mijia]/[temperature|humidity|battery|status]
+MQTT_REGEX = 'WLanThermo/Nano/([^/]+)/([^/]+)'
 MQTT_CLIENT_ID = 'MQTTInfluxDBBridge'
 
 influxdb_client = InfluxDBClient(INFLUXDB_ADDRESS, 8086, INFLUXDB_USER, INFLUXDB_PASSWORD, None)
@@ -41,6 +41,8 @@ def on_message(client, userdata, msg):
     for c in data['channel']:
         _send_thermo_data_to_influxdb(c)
 
+    _send_system_data_to_influxdb(data['system'])
+
 
 def _send_thermo_data_to_influxdb(channel):
     json_body = [
@@ -50,14 +52,26 @@ def _send_thermo_data_to_influxdb(channel):
                 'channel': channel["name"]
             },
             'fields': {
-                'value': channel["temp"]
+                'value': channel["temp"],
+                'number': channel["number"]
             }
         }
     ]
-    print('json body built')
     influxdb_client.write_points(json_body)
-    print('measurements:')
-    print(influxdb_client.get_list_measurements())
+
+def _send_system_data_to_influxdb(system):
+    json_body = [
+        {
+            'measurement': "system",
+            'tags': {
+                'system': "system"
+            },
+            'fields': {
+                'charge': system["soc"],
+            }
+        }
+    ]
+    influxdb_client.write_points(json_body)
 
 def _init_influxdb_database():
     databases = influxdb_client.get_list_database()
